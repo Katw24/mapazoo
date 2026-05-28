@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mapa Interativo do Zoológico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background: #0e0e0e;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Inter', Arial, sans-serif;
+    }
+
+    /* ===== MAPA ===== */
+
+    .map-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #mapa {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+      -webkit-user-drag: none;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    /* ===== BOTÃO LIMPAR ===== */
+
+    .controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+    }
+
+    #limpar {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 0.5px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      color: #fff;
+      font-family: 'Inter', Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: background 0.2s, transform 0.15s, border-color 0.2s;
+      letter-spacing: 0.01em;
+    }
+
+    #limpar::before {
+      content: "✕";
+      font-size: 12px;
+      color: #ff6b6b;
+      font-weight: 600;
+    }
+
+    #limpar:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.28);
+      transform: scale(1.03);
+    }
+
+    #limpar:active {
+      transform: scale(0.97);
+    }
+
+    /* ===== PAINEL DE REGRAS ===== */
+
+    .rules-panel {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .rules-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 0.5px solid rgba(255, 255, 255, 0.18);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-family: 'Inter', Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: background 0.2s, transform 0.15s;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    .rules-trigger::before {
+      content: "☰";
+      font-size: 13px;
+      color: #a5f3c0;
+    }
+
+    .rules-trigger:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: scale(1.03);
+    }
+
+    .rules-body {
+      width: 300px;
+      margin-top: 10px;
+      background: rgba(14, 14, 14, 0.97);
+      border: 0.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+    }
+
+    .rules-panel:hover .rules-body {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .rules-header {
+      padding: 14px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: 0.02em;
+      border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rules-header::before {
+      content: "🗺";
+      font-size: 14px;
+    }
+
+    .rules-content {
+      padding: 14px 18px;
+      font-size: 12px;
+      line-height: 1.65;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .rules-content ul {
+      padding-left: 16px;
+      margin-bottom: 14px;
+    }
+
+    .rules-content li {
+      margin-bottom: 7px;
+    }
+
+    .rules-content b {
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .required-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: rgba(255, 255, 255, 0.38);
+      margin-bottom: 8px;
+    }
+
+    .required-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .required-list li {
+      list-style: none;
+      padding: 7px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 0.5px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .required-list li::before {
+      content: "◦";
+      color: #7dd3b0;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    /* ===== MOBILE ===== */
+
+    @media (max-width: 900px) {
+      .rules-panel {
+        top: auto;
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+        flex-direction: column-reverse;
+        align-items: flex-start;
+      }
+
+      .rules-body {
+        width: 100%;
+        margin-top: 0;
+        margin-bottom: 10px;
+        transform: translateY(8px) scale(0.98);
+      }
+
+      .rules-panel:hover .rules-body {
+        transform: translateY(0) scale(1);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BOTÃO LIMPAR -->
+  <div class="controls">
+    <button id="limpar">Limpar caminho</button>
+  </div>
+
+  <!-- REGRAS -->
+  <div class="rules-panel">
+
+    <div class="rules-trigger">Regras do passeio</div>
+
+    <div class="rules-body">
+
+      <div class="rules-header">Como percorrer o zoológico</div>
+
+      <div class="rules-content">
+        <ul>
+          <li>Comece pela <b>entrada</b> e termine no <b>piquenique</b>.</li>
+          <li>Caminhos <b>pontilhados</b> podem ser usados quantas vezes quiser.</li>
+          <li>Caminhos <b>não pontilhados</b> só podem ser usados <b>uma vez</b>.</li>
+          <li>Apenas <b>um passeio a cavalo</b> é permitido (horizontal ou vertical).</li>
+        </ul>
+
+        <div class="required-title">Lugares obrigatórios</div>
+
+        <ul class="required-list">
+          <li>Casa do Elefante</li>
+          <li>Jaula do Leão</li>
+          <li>Gaiola do Avestruz</li>
+          <li>Lanchonete</li>
+          <li>Jaula dos Ursos</li>
+          <li>Recinto das Aves</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAPA -->
+  <div class="map-container">
+    <img
+      id="mapa"
+      src="imagens/mapazoo.png"
+      alt="Mapa do Zoológico"
+      draggable="false"
+    />
+    <canvas id="draw"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("draw");
+    const ctx = canvas.getContext("2d");
+    const img = document.getElementById("mapa");
+
+    let desenhando = false;
+
+    function resizeCanvas() {
+      const rect = img.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      canvas.style.width = rect.width + "px";
+      canvas.style.height = rect.height + "px";
+      canvas.style.left = img.offsetLeft + "px";
+      canvas.style.top = img.offsetTop + "px";
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    img.onload = resizeCanvas;
+    resizeCanvas();
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function iniciar(e) {
+      desenhando = true;
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    }
+
+    function desenhar(e) {
+      if (!desenhando) return;
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = "#79A893";
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.setLineDash([14, 9]);
+      ctx.stroke();
+    }
+
+    function parar() {
+      desenhando = false;
+      ctx.beginPath();
+    }
+
+    canvas.addEventListener("mousedown", (e) => { e.preventDefault(); iniciar(e); });
+    window.addEventListener("mousemove", desenhar);
+    window.addEventListener("mouseup", parar);
+
+    canvas.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      iniciar({ clientX: t.clientX, clientY: t.clientY });
+    });
+
+    window.addEventListener("touchmove", (e) => {
+      if (!desenhando) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      desenhar({ clientX: t.clientX, clientY: t.clientY });
+    }, { passive: false });
+
+    window.addEventListener("touchend", parar);
+
+    document.getElementById("limpar").addEventListener("click", () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+
+    document.addEventListener("dragstart", (e) => e.preventDefault());
+    document.addEventListener("selectstart", (e) => e.preventDefault());
+  </script>
+
+</body>
+</html>
